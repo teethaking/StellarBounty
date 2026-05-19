@@ -13,12 +13,6 @@ pub enum BountyStatus {
     Cancelled,
 }
 
-const OWNER: &str = "OWNER";
-const AMOUNT: &str = "AMOUNT";
-const STATUS: &str = "STATUS";
-const CONTRIBUTOR: &str = "CONTRIB";
-const TOKEN: &str = "TOKEN";
-
 #[contract]
 pub struct EscrowContract;
 
@@ -27,16 +21,16 @@ impl EscrowContract {
     /// Initialize a bounty. Sets owner, amount, token address, and status to Created.
     pub fn initialize(env: Env, owner: Address, amount: i128, token_address: Address) {
         owner.require_auth();
-        env.storage().instance().set(&symbol_short!(OWNER), &owner);
+        env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage()
             .instance()
-            .set(&symbol_short!(AMOUNT), &amount);
+            .set(&symbol_short!("AMOUNT"), &amount);
         env.storage()
             .instance()
-            .set(&symbol_short!(TOKEN), &token_address);
+            .set(&symbol_short!("TOKEN"), &token_address);
         env.storage()
             .instance()
-            .set(&symbol_short!(STATUS), &BountyStatus::Created);
+            .set(&symbol_short!("STATUS"), &BountyStatus::Created);
     }
 
     /// Fund the bounty. Transfers `amount` tokens from owner into the contract.
@@ -49,9 +43,9 @@ impl EscrowContract {
         let amount: i128 = env
             .storage()
             .instance()
-            .get(&symbol_short!(AMOUNT))
+            .get(&symbol_short!("AMOUNT"))
             .unwrap();
-        let token_address: Address = env.storage().instance().get(&symbol_short!(TOKEN)).unwrap();
+        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
         let token = token::Client::new(&env, &token_address);
         token.transfer_from(
             &env.current_contract_address(),
@@ -62,7 +56,7 @@ impl EscrowContract {
 
         env.storage()
             .instance()
-            .set(&symbol_short!(STATUS), &BountyStatus::Funded);
+            .set(&symbol_short!("STATUS"), &BountyStatus::Funded);
     }
 
     /// Contributor starts work. Transitions Funded → InProgress.
@@ -75,10 +69,10 @@ impl EscrowContract {
         );
         env.storage()
             .instance()
-            .set(&symbol_short!(CONTRIBUTOR), &contributor);
+            .set(&symbol_short!("CONTRIB"), &contributor);
         env.storage()
             .instance()
-            .set(&symbol_short!(STATUS), &BountyStatus::InProgress);
+            .set(&symbol_short!("STATUS"), &BountyStatus::InProgress);
     }
 
     /// Contributor submits work. Transitions InProgress → UnderReview.
@@ -92,7 +86,7 @@ impl EscrowContract {
         );
         env.storage()
             .instance()
-            .set(&symbol_short!(STATUS), &BountyStatus::UnderReview);
+            .set(&symbol_short!("STATUS"), &BountyStatus::UnderReview);
     }
 
     /// Owner approves and releases funds to contributor. Transitions UnderReview → Completed.
@@ -108,20 +102,20 @@ impl EscrowContract {
         let amount: i128 = env
             .storage()
             .instance()
-            .get(&symbol_short!(AMOUNT))
+            .get(&symbol_short!("AMOUNT"))
             .unwrap();
-        let token_address: Address = env.storage().instance().get(&symbol_short!(TOKEN)).unwrap();
+        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
         let contributor: Address = env
             .storage()
             .instance()
-            .get(&symbol_short!(CONTRIBUTOR))
+            .get(&symbol_short!("CONTRIB"))
             .unwrap();
         let token = token::Client::new(&env, &token_address);
         token.transfer(&env.current_contract_address(), &contributor, &amount);
 
         env.storage()
             .instance()
-            .set(&symbol_short!(STATUS), &BountyStatus::Completed);
+            .set(&symbol_short!("STATUS"), &BountyStatus::Completed);
     }
 
     /// Owner cancels and gets a refund. Only valid from Created or Funded.
@@ -131,7 +125,7 @@ impl EscrowContract {
         let status: BountyStatus = env
             .storage()
             .instance()
-            .get(&symbol_short!(STATUS))
+            .get(&symbol_short!("STATUS"))
             .unwrap();
         assert!(
             status == BountyStatus::Created || status == BountyStatus::Funded,
@@ -142,52 +136,62 @@ impl EscrowContract {
             let amount: i128 = env
                 .storage()
                 .instance()
-                .get(&symbol_short!(AMOUNT))
+                .get(&symbol_short!("AMOUNT"))
                 .unwrap();
             let token_address: Address =
-                env.storage().instance().get(&symbol_short!(TOKEN)).unwrap();
+                env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
             let token = token::Client::new(&env, &token_address);
             token.transfer(&env.current_contract_address(), &owner, &amount);
         }
 
         env.storage()
             .instance()
-            .set(&symbol_short!(STATUS), &BountyStatus::Cancelled);
+            .set(&symbol_short!("STATUS"), &BountyStatus::Cancelled);
     }
 
     pub fn get_owner(env: Env) -> Address {
-        env.storage().instance().get(&symbol_short!(OWNER)).unwrap()
+        env.storage()
+            .instance()
+            .get(&symbol_short!("OWNER"))
+            .unwrap()
     }
 
     pub fn get_amount(env: Env) -> i128 {
         env.storage()
             .instance()
-            .get(&symbol_short!(AMOUNT))
+            .get(&symbol_short!("AMOUNT"))
             .unwrap()
     }
 
     pub fn get_status(env: Env) -> BountyStatus {
         env.storage()
             .instance()
-            .get(&symbol_short!(STATUS))
+            .get(&symbol_short!("STATUS"))
             .unwrap()
     }
 
     pub fn get_contributor(env: Env) -> Address {
         env.storage()
             .instance()
-            .get(&symbol_short!(CONTRIBUTOR))
+            .get(&symbol_short!("CONTRIB"))
             .unwrap()
     }
 
     pub fn get_token(env: Env) -> Address {
-        env.storage().instance().get(&symbol_short!(TOKEN)).unwrap()
+        env.storage()
+            .instance()
+            .get(&symbol_short!("TOKEN"))
+            .unwrap()
     }
 
     // --- helpers ---
 
     fn assert_owner(env: &Env, caller: &Address) {
-        let owner: Address = env.storage().instance().get(&symbol_short!(OWNER)).unwrap();
+        let owner: Address = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("OWNER"))
+            .unwrap();
         assert!(caller == &owner, "only owner can call this");
     }
 
@@ -195,7 +199,7 @@ impl EscrowContract {
         let contributor: Address = env
             .storage()
             .instance()
-            .get(&symbol_short!(CONTRIBUTOR))
+            .get(&symbol_short!("CONTRIB"))
             .unwrap();
         assert!(caller == &contributor, "only contributor can call this");
     }
@@ -204,7 +208,7 @@ impl EscrowContract {
         let status: BountyStatus = env
             .storage()
             .instance()
-            .get(&symbol_short!(STATUS))
+            .get(&symbol_short!("STATUS"))
             .unwrap();
         assert!(status == expected, "{}", msg);
     }
