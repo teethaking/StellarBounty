@@ -21,7 +21,9 @@ impl EscrowContract {
     /// Initialize a bounty. Sets owner, amount, token address, and status to Created.
     pub fn initialize(env: Env, owner: Address, amount: i128, token_address: Address) {
         owner.require_auth();
-        env.storage().instance().set(&symbol_short!("OWNER"), &owner);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("OWNER"), &owner);
         env.storage()
             .instance()
             .set(&symbol_short!("AMOUNT"), &amount);
@@ -45,7 +47,11 @@ impl EscrowContract {
             .instance()
             .get(&symbol_short!("AMOUNT"))
             .unwrap();
-        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+        let token_address: Address = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("TOKEN"))
+            .unwrap();
         let token = token::Client::new(&env, &token_address);
         token.transfer_from(
             &env.current_contract_address(),
@@ -104,7 +110,11 @@ impl EscrowContract {
             .instance()
             .get(&symbol_short!("AMOUNT"))
             .unwrap();
-        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+        let token_address: Address = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("TOKEN"))
+            .unwrap();
         let contributor: Address = env
             .storage()
             .instance()
