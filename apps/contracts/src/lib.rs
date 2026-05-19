@@ -214,7 +214,7 @@ impl EscrowContract {
         assert!(caller == &contributor, "only contributor can call this");
     }
 
-    fn assert_status(env: &Env, expected: BountyStatus, msg: &str) {
+    fn assert_status(env: &Env, expected: BountyStatus, msg: &'static str) {
         let status: BountyStatus = env
             .storage()
             .instance()
