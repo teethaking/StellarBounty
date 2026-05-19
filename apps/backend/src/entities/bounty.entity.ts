@@ -18,32 +18,32 @@ export enum BountyStatus {
 @Entity('bounties')
 export class Bounty {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column('text')
-  description: string;
+  description!: string;
 
   @Column('bigint')
-  rewardAmount: string;
+  rewardAmount!: string;
 
   @Column({ type: 'timestamptz', nullable: true })
-  deadline: Date | null;
+  deadline!: Date | null;
 
   @Column({ type: 'enum', enum: BountyStatus, default: BountyStatus.OPEN })
-  status: BountyStatus;
+  status!: BountyStatus;
 
   @Column()
-  ownerAddress: string;
+  ownerAddress!: string;
 
   @OneToMany(() => Submission, (submission) => submission.bounty)
-  submissions: Submission[];
+  submissions!: Submission[];
 
   @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn({ type: 'timestamptz' })
-  updatedAt: Date;
+  updatedAt!: Date;
 }

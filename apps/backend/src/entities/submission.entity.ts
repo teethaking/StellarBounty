@@ -16,23 +16,23 @@ export enum SubmissionStatus {
 @Entity('submissions')
 export class Submission {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  bountyId: string;
+  bountyId!: string;
 
   @ManyToOne(() => Bounty, (bounty) => bounty.submissions, { onDelete: 'CASCADE' })
-  bounty: Bounty;
+  bounty!: Bounty;
 
   @Column()
-  contributorAddress: string;
+  contributorAddress!: string;
 
   @Column()
-  link: string;
+  link!: string;
 
   @Column({ type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.PENDING })
-  status: SubmissionStatus;
+  status!: SubmissionStatus;
 
   @CreateDateColumn({ type: 'timestamptz' })
-  createdAt: Date;
+  createdAt!: Date;
 }
