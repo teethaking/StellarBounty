@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env};
 
 #[contracttype]
 #[derive(Clone, PartialEq, Debug)]
@@ -13,38 +13,52 @@ pub enum BountyStatus {
     Cancelled,
 }
 
-const OWNER: &str = "OWNER";
-const AMOUNT: &str = "AMOUNT";
-const STATUS: &str = "STATUS";
-const CONTRIBUTOR: &str = "CONTRIB";
-
 #[contract]
 pub struct EscrowContract;
 
 #[contractimpl]
 impl EscrowContract {
-    /// Initialize a bounty. Sets owner, amount, and status to Created.
-    pub fn initialize(env: Env, owner: Address, amount: i128) {
+    /// Initialize a bounty. Sets owner, amount, token address, and status to Created.
+    pub fn initialize(env: Env, owner: Address, amount: i128, token_address: Address) {
         owner.require_auth();
-        env.storage().instance().set(&symbol_short!(OWNER), &owner);
-        env.storage().instance().set(&symbol_short!(AMOUNT), &amount);
-        env.storage().instance().set(&symbol_short!(STATUS), &BountyStatus::Created);
+        env.storage().instance().set(&symbol_short!("OWNER"), &owner);
+        env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
+        env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::Created);
     }
 
-    /// Fund the bounty. Transitions Created → Funded.
+    /// Fund the bounty. Transfers `amount` tokens from owner into the contract.
+    /// Transitions Created → Funded.
     pub fn fund(env: Env, owner: Address) {
         owner.require_auth();
         Self::assert_owner(&env, &owner);
         Self::assert_status(&env, BountyStatus::Created, "fund requires Created status");
-        env.storage().instance().set(&symbol_short!(STATUS), &BountyStatus::Funded);
+
+        let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
+        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+        let token = token::Client::new(&env, &token_address);
+        token.transfer_from(
+            &env.current_contract_address(),
+            &owner,
+            &env.current_contract_address(),
+            &amount,
+        );
+
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::Funded);
     }
 
     /// Contributor starts work. Transitions Funded → InProgress.
     pub fn start_work(env: Env, contributor: Address) {
         contributor.require_auth();
         Self::assert_status(&env, BountyStatus::Funded, "start_work requires Funded status");
-        env.storage().instance().set(&symbol_short!(CONTRIBUTOR), &contributor);
-        env.storage().instance().set(&symbol_short!(STATUS), &BountyStatus::InProgress);
+        env.storage().instance().set(&symbol_short!("CONTRIB"), &contributor);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::InProgress);
     }
 
     /// Contributor submits work. Transitions InProgress → UnderReview.
@@ -52,61 +66,84 @@ impl EscrowContract {
         contributor.require_auth();
         Self::assert_contributor(&env, &contributor);
         Self::assert_status(&env, BountyStatus::InProgress, "submit requires InProgress status");
-        env.storage().instance().set(&symbol_short!(STATUS), &BountyStatus::UnderReview);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::UnderReview);
     }
 
-    /// Owner approves and releases funds. Transitions UnderReview → Completed.
+    /// Owner approves and releases funds to contributor. Transitions UnderReview → Completed.
     pub fn approve(env: Env, owner: Address) {
         owner.require_auth();
         Self::assert_owner(&env, &owner);
         Self::assert_status(&env, BountyStatus::UnderReview, "approve requires UnderReview status");
-        // Token transfer would be wired here via soroban token interface.
-        env.storage().instance().set(&symbol_short!(STATUS), &BountyStatus::Completed);
+
+        let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
+        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        let token = token::Client::new(&env, &token_address);
+        token.transfer(&env.current_contract_address(), &contributor, &amount);
+
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::Completed);
     }
 
-    /// Owner cancels. Only valid from Created or Funded; refunds owner.
+    /// Owner cancels and gets a refund. Only valid from Created or Funded.
     pub fn cancel(env: Env, owner: Address) {
         owner.require_auth();
         Self::assert_owner(&env, &owner);
-        let status: BountyStatus = env.storage().instance().get(&symbol_short!(STATUS)).unwrap();
+        let status: BountyStatus = env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
         assert!(
             status == BountyStatus::Created || status == BountyStatus::Funded,
             "cancel only allowed from Created or Funded"
         );
-        // Refund logic would be wired here via soroban token interface.
-        env.storage().instance().set(&symbol_short!(STATUS), &BountyStatus::Cancelled);
+
+        if status == BountyStatus::Funded {
+            let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
+            let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+            let token = token::Client::new(&env, &token_address);
+            token.transfer(&env.current_contract_address(), &owner, &amount);
+        }
+
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::Cancelled);
     }
 
     pub fn get_owner(env: Env) -> Address {
-        env.storage().instance().get(&symbol_short!(OWNER)).unwrap()
+        env.storage().instance().get(&symbol_short!("OWNER")).unwrap()
     }
 
     pub fn get_amount(env: Env) -> i128 {
-        env.storage().instance().get(&symbol_short!(AMOUNT)).unwrap()
+        env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap()
     }
 
     pub fn get_status(env: Env) -> BountyStatus {
-        env.storage().instance().get(&symbol_short!(STATUS)).unwrap()
+        env.storage().instance().get(&symbol_short!("STATUS")).unwrap()
     }
 
     pub fn get_contributor(env: Env) -> Address {
-        env.storage().instance().get(&symbol_short!(CONTRIBUTOR)).unwrap()
+        env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap()
+    }
+
+    pub fn get_token(env: Env) -> Address {
+        env.storage().instance().get(&symbol_short!("TOKEN")).unwrap()
     }
 
     // --- helpers ---
 
     fn assert_owner(env: &Env, caller: &Address) {
-        let owner: Address = env.storage().instance().get(&symbol_short!(OWNER)).unwrap();
+        let owner: Address = env.storage().instance().get(&symbol_short!("OWNER")).unwrap();
         assert!(caller == &owner, "only owner can call this");
     }
 
     fn assert_contributor(env: &Env, caller: &Address) {
-        let contributor: Address = env.storage().instance().get(&symbol_short!(CONTRIBUTOR)).unwrap();
+        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         assert!(caller == &contributor, "only contributor can call this");
     }
 
-    fn assert_status(env: &Env, expected: BountyStatus, msg: &str) {
-        let status: BountyStatus = env.storage().instance().get(&symbol_short!(STATUS)).unwrap();
+    fn assert_status(env: &Env, expected: BountyStatus, msg: &'static str) {
+        let status: BountyStatus = env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
         assert!(status == expected, "{}", msg);
     }
 }
@@ -114,39 +151,115 @@ impl EscrowContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::{
+        testutils::Address as _,
+        token::{Client as TokenClient, StellarAssetClient},
+        Address, Env,
+    };
 
-    fn setup() -> (Env, EscrowContractClient<'static>, Address, i128) {
+    fn setup() -> (Env, EscrowContractClient<'static>, Address, Address, Address, i128) {
         let env = Env::default();
         env.mock_all_auths();
-        let contract_id = env.register(EscrowContract, ());
+
+        let token_admin = Address::generate(&env);
+        let token_id = env.register_stellar_asset_contract_v2(token_admin.clone());
+        let token_address = token_id.address();
+        let token_admin_client = StellarAssetClient::new(&env, &token_address);
+
+        let contract_id = env.register_contract(None, EscrowContract);
         let client = EscrowContractClient::new(&env, &contract_id);
+
         let owner = Address::generate(&env);
         let amount: i128 = 1000;
-        (env, client, owner, amount)
+
+        token_admin_client.mint(&owner, &amount);
+
+        let token_client = TokenClient::new(&env, &token_address);
+        token_client.approve(&owner, &contract_id, &amount, &200);
+
+        (env, client, owner, token_address, contract_id, amount)
     }
 
     #[test]
-    fn test_initialize_stores_owner_and_amount() {
-        let (_, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+    fn test_initialize_stores_fields() {
+        let (_, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
         assert_eq!(client.get_owner(), owner);
         assert_eq!(client.get_amount(), amount);
+        assert_eq!(client.get_token(), token_address);
         assert_eq!(client.get_status(), BountyStatus::Created);
     }
 
     #[test]
-    fn test_fund_transitions_to_funded() {
-        let (_, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+    fn test_fund_transfers_tokens_and_transitions() {
+        let (env, client, owner, token_address, contract_id, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
+
+        let token = TokenClient::new(&env, &token_address);
+        assert_eq!(token.balance(&owner), amount);
+
         client.fund(&owner);
+
         assert_eq!(client.get_status(), BountyStatus::Funded);
+        assert_eq!(token.balance(&owner), 0);
+        assert_eq!(token.balance(&contract_id), amount);
+    }
+
+    #[test]
+    fn test_approve_pays_contributor() {
+        let (env, client, owner, token_address, contract_id, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
+        client.fund(&owner);
+
+        let contributor = Address::generate(&env);
+        client.start_work(&contributor);
+        client.submit(&contributor);
+
+        let token = TokenClient::new(&env, &token_address);
+        assert_eq!(token.balance(&contract_id), amount);
+
+        client.approve(&owner);
+
+        assert_eq!(client.get_status(), BountyStatus::Completed);
+        assert_eq!(token.balance(&contributor), amount);
+        assert_eq!(token.balance(&contract_id), 0);
+    }
+
+    #[test]
+    fn test_cancel_from_funded_refunds_owner() {
+        let (env, client, owner, token_address, contract_id, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
+        client.fund(&owner);
+
+        let token = TokenClient::new(&env, &token_address);
+        assert_eq!(token.balance(&contract_id), amount);
+        assert_eq!(token.balance(&owner), 0);
+
+        client.cancel(&owner);
+
+        assert_eq!(client.get_status(), BountyStatus::Cancelled);
+        assert_eq!(token.balance(&owner), amount);
+        assert_eq!(token.balance(&contract_id), 0);
+    }
+
+    #[test]
+    fn test_cancel_from_created_no_transfer() {
+        let (env, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
+
+        let token = TokenClient::new(&env, &token_address);
+        let owner_balance_before = token.balance(&owner);
+
+        client.cancel(&owner);
+
+        assert_eq!(client.get_status(), BountyStatus::Cancelled);
+        assert_eq!(token.balance(&owner), owner_balance_before);
     }
 
     #[test]
     fn test_start_work_transitions_to_in_progress() {
-        let (env, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+        let (env, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
@@ -156,8 +269,8 @@ mod tests {
 
     #[test]
     fn test_submit_transitions_to_under_review() {
-        let (env, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+        let (env, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
@@ -166,40 +279,14 @@ mod tests {
     }
 
     #[test]
-    fn test_approve_transitions_to_completed() {
-        let (env, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+    #[should_panic(expected = "only owner can call this")]
+    fn test_approve_unauthorized_panics() {
+        let (env, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
         client.submit(&contributor);
-        client.approve(&owner);
-        assert_eq!(client.get_status(), BountyStatus::Completed);
-    }
-
-    #[test]
-    fn test_cancel_from_created() {
-        let (_, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
-        client.cancel(&owner);
-        assert_eq!(client.get_status(), BountyStatus::Cancelled);
-    }
-
-    #[test]
-    fn test_cancel_from_funded() {
-        let (_, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
-        client.fund(&owner);
-        client.cancel(&owner);
-        assert_eq!(client.get_status(), BountyStatus::Cancelled);
-    }
-
-    #[test]
-    #[should_panic(expected = "only owner can call this")]
-    fn test_release_unauthorized_panics() {
-        let (env, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
-        client.fund(&owner);
         let not_owner = Address::generate(&env);
         client.approve(&not_owner);
     }
@@ -207,8 +294,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "cancel only allowed from Created or Funded")]
     fn test_cancel_from_in_progress_panics() {
-        let (env, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+        let (env, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
@@ -217,11 +304,10 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "fund requires Created status")]
-    fn test_invalid_transition_panics() {
-        let (_, client, owner, amount) = setup();
-        client.initialize(&owner, &amount);
+    fn test_double_fund_panics() {
+        let (_, client, owner, token_address, _, amount) = setup();
+        client.initialize(&owner, &amount, &token_address);
         client.fund(&owner);
-        // Funding again should panic
         client.fund(&owner);
     }
 }
