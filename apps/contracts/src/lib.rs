@@ -206,20 +206,12 @@ impl EscrowContract {
     }
 
     fn assert_contributor(env: &Env, caller: &Address) {
-        let contributor: Address = env
-            .storage()
-            .instance()
-            .get(&symbol_short!("CONTRIB"))
-            .unwrap();
+        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         assert!(caller == &contributor, "only contributor can call this");
     }
 
     fn assert_status(env: &Env, expected: BountyStatus, msg: &'static str) {
-        let status: BountyStatus = env
-            .storage()
-            .instance()
-            .get(&symbol_short!("STATUS"))
-            .unwrap();
+        let status: BountyStatus = env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
         assert!(status == expected, "{}", msg);
     }
 }
@@ -233,14 +225,7 @@ mod tests {
         Address, Env,
     };
 
-    fn setup() -> (
-        Env,
-        EscrowContractClient<'static>,
-        Address,
-        Address,
-        Address,
-        i128,
-    ) {
+    fn setup() -> (Env, EscrowContractClient<'static>, Address, Address, Address, i128) {
         let env = Env::default();
         env.mock_all_auths();
 
