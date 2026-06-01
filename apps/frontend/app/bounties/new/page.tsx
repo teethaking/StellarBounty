@@ -1,93 +1,252 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signMessage } from "@stellar/freighter-api";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import MarkdownRenderer from "@/app/components/MarkdownRenderer";
+import { useWallet } from "@/components/WalletContext";
 
-/**
- * Create bounty form with live markdown preview.
- * Write/Preview tabs for the description field.
- */
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const TOKEN_STORAGE_KEY = "stellar-bounty.auth-token";
+
+const createBountySchema = z.object({
+  title: z.string().trim().min(1, "Title is required."),
+  description: z.string().trim().min(1, "Description is required."),
+  reward: z
+    .string()
+    .trim()
+    .min(1, "Reward amount is required.")
+    .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, "Reward must be a positive number."),
+  deadline: z.string().min(1, "Deadline is required."),
+});
+
+type CreateBountyFormValues = z.infer<typeof createBountySchema>;
+
+type AuthTokenResponse = {
+  accessToken: string;
+};
+
+type CreateBountyResponse = {
+  id: string;
+};
+
+function formatErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Unable to create bounty.";
+}
+
+async function getAccessToken(publicKey: string): Promise<string> {
+  const savedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+
+  if (savedToken) {
+    return savedToken;
+  }
+
+  const challengeResponse = await fetch(`${API_URL}/auth/challenge?address=${encodeURIComponent(publicKey)}`);
+  if (!challengeResponse.ok) {
+    throw new Error("Failed to request wallet challenge.");
+  }
+
+  const { nonce } = (await challengeResponse.json()) as { nonce?: string };
+  if (!nonce) {
+    throw new Error("Challenge response was missing a nonce.");
+  }
+
+  const signed = await signMessage(nonce, { address: publicKey });
+  if (signed.error || !signed.signedMessage) {
+    throw new Error(signed.error?.message || "Wallet signature was cancelled.");
+  }
+
+  const verifyResponse = await fetch(`${API_URL}/auth/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      address: publicKey,
+      signature: signed.signedMessage,
+      nonce,
+    }),
+  });
+
+  if (!verifyResponse.ok) {
+    throw new Error("Wallet verification failed.");
+  }
+
+  const { accessToken } = (await verifyResponse.json()) as AuthTokenResponse;
+  if (!accessToken) {
+    throw new Error("Verification did not return an access token.");
+  }
+
+  window.localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+  return accessToken;
+}
+
 export default function CreateBountyPage() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [reward, setReward] = useState("");
-  const [deadline, setDeadline] = useState("");
+  const router = useRouter();
+  const { publicKey } = useWallet();
   const [activeTab, setActiveTab] = useState<"write" | "preview">("write");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: POST /bounties when backend is ready
-    alert("Bounty created! (backend not yet connected)");
-  };
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateBountyFormValues>({
+    resolver: zodResolver(createBountySchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      reward: "",
+      deadline: "",
+    },
+  });
+
+  const description = watch("description");
+
+  useEffect(() => {
+    if (!publicKey) {
+      router.replace("/");
+    }
+  }, [publicKey, router]);
+
+  const fieldErrorClass = useMemo(
+    () => "mt-1 text-sm text-red-300",
+    [],
+  );
+
+  const onSubmit = handleSubmit(async (values) => {
+    if (!publicKey) {
+      router.replace("/");
+      return;
+    }
+
+    setSubmitError(null);
+
+    try {
+      const accessToken = await getAccessToken(publicKey);
+      const response = await fetch(`${API_URL}/bounties`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          title: values.title.trim(),
+          description: values.description.trim(),
+          rewardAmount: values.reward.trim(),
+          ownerAddress: publicKey,
+          deadline: new Date(values.deadline).toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { message?: string | string[] } | null;
+        const message = Array.isArray(payload?.message) ? payload?.message.join(" ") : payload?.message;
+
+        if (message?.toLowerCase().includes("title")) {
+          setError("title", { message });
+          return;
+        }
+        if (message?.toLowerCase().includes("description")) {
+          setError("description", { message });
+          return;
+        }
+        if (message?.toLowerCase().includes("reward")) {
+          setError("reward", { message });
+          return;
+        }
+        if (message?.toLowerCase().includes("deadline")) {
+          setError("deadline", { message });
+          return;
+        }
+
+        if (response.status === 401) {
+          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+        }
+
+        throw new Error(message || "Unable to create bounty.");
+      }
+
+      const created = (await response.json()) as CreateBountyResponse;
+      router.push(`/bounties/${created.id}`);
+    } catch (error) {
+      setSubmitError(formatErrorMessage(error));
+    }
+  });
+
+  if (!publicKey) {
+    return null;
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Create a New Bounty</h1>
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <h1 className="mb-6 text-2xl font-bold">Create a New Bounty</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title */}
+        <form onSubmit={onSubmit} className="space-y-6">
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="title" className="mb-1 block text-sm font-medium text-slate-300">
               Title
             </label>
             <input
               id="title"
               type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 text-slate-100"
+              {...register("title")}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
               placeholder="e.g. Build a bounty listing page"
             />
+            {errors.title ? <p className={fieldErrorClass}>{errors.title.message}</p> : null}
           </div>
 
-          {/* Reward + Deadline */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="reward" className="block text-sm font-medium text-slate-300 mb-1">
+              <label htmlFor="reward" className="mb-1 block text-sm font-medium text-slate-300">
                 Reward (XLM)
               </label>
               <input
                 id="reward"
                 type="text"
-                required
-                value={reward}
-                onChange={(e) => setReward(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 text-slate-100"
+                inputMode="decimal"
+                {...register("reward")}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
                 placeholder="e.g. 500"
               />
+              {errors.reward ? <p className={fieldErrorClass}>{errors.reward.message}</p> : null}
             </div>
             <div>
-              <label htmlFor="deadline" className="block text-sm font-medium text-slate-300 mb-1">
+              <label htmlFor="deadline" className="mb-1 block text-sm font-medium text-slate-300">
                 Deadline
               </label>
               <input
                 id="deadline"
                 type="date"
-                required
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 text-slate-100"
+                {...register("deadline")}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
               />
+              {errors.deadline ? <p className={fieldErrorClass}>{errors.deadline.message}</p> : null}
             </div>
           </div>
 
-          {/* Description with Write/Preview tabs */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
+            <label className="mb-1 block text-sm font-medium text-slate-300">
               Description (supports Markdown)
             </label>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-700 mb-0">
+            <div className="mb-0 flex border-b border-slate-700">
               <button
                 type="button"
                 onClick={() => setActiveTab("write")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
                   activeTab === "write"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-b-2 border-blue-500 text-blue-400"
+                    : "border-b-2 border-transparent text-slate-400 hover:text-slate-200"
                 }`}
               >
                 Write
@@ -95,43 +254,48 @@ export default function CreateBountyPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("preview")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
                   activeTab === "preview"
-                    ? "border-blue-500 text-blue-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-b-2 border-blue-500 text-blue-400"
+                    : "border-b-2 border-transparent text-slate-400 hover:text-slate-200"
                 }`}
               >
                 Preview
               </button>
             </div>
 
-            {/* Content */}
             {activeTab === "write" ? (
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
                 rows={12}
-                className="w-full p-4 bg-slate-900 border border-t-0 border-slate-700 rounded-b-lg font-mono text-sm resize-y focus:outline-none focus:border-blue-500 text-slate-100"
+                {...register("description")}
+                className="w-full resize-y rounded-b-lg border border-t-0 border-slate-700 bg-slate-900 p-4 font-mono text-sm text-slate-100 focus:border-blue-500 focus:outline-none"
                 placeholder="Write your bounty requirements in markdown..."
               />
             ) : (
-              <div className="p-4 bg-slate-900 border border-t-0 border-slate-700 rounded-b-lg min-h-[200px]">
+              <div className="min-h-[200px] rounded-b-lg border border-t-0 border-slate-700 bg-slate-900 p-4">
                 {description ? (
                   <MarkdownRenderer content={description} />
                 ) : (
-                  <p className="text-slate-500 text-sm italic">Nothing to preview yet...</p>
+                  <p className="text-sm italic text-slate-500">Nothing to preview yet...</p>
                 )}
               </div>
             )}
+            {errors.description ? <p className={fieldErrorClass}>{errors.description.message}</p> : null}
           </div>
 
-          {/* Submit */}
+          {submitError ? (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {submitError}
+            </div>
+          ) : null}
+
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              disabled={isSubmitting}
+              className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Create Bounty
+              {isSubmitting ? "Creating..." : "Create Bounty"}
             </button>
           </div>
         </form>
