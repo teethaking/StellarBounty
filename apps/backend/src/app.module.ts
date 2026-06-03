@@ -10,7 +10,8 @@ import { BountiesService } from './bounties.service';
 import { Bounty } from './entities/bounty.entity';
 import { Submission } from './entities/submission.entity';
 import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
-import { SubmissionsModule } from './submissions/submissions.module';
+import { SubmissionsController } from './submissions.controller';
+import { SubmissionsService } from './submissions.service';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { SubmissionsModule } from './submissions/submissions.module';
       }),
     }),
   ],
-  controllers: [AppController, BountiesController],
-  providers: [AppService, BountiesService],
+  controllers: [AppController, BountiesController, SubmissionsController],
+  providers: [AppService, BountiesService, SubmissionsService],
 })
 export class AppModule {}
