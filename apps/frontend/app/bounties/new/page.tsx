@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import MarkdownRenderer from "@/app/components/MarkdownRenderer";
 import { useWallet } from "@/components/WalletContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const TOKEN_STORAGE_KEY = "stellar-bounty.auth-token";
 
 const createBountySchema = z.object({

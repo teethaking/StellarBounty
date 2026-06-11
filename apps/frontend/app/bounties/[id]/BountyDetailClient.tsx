@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { signMessage } from "@stellar/freighter-api";
 import { useWallet } from "@/components/WalletContext";
 
 type Bounty = {
@@ -9,7 +10,7 @@ type Bounty = {
   description: string;
   reward: string;
   deadline: string;
-  status: "open" | "in-progress" | "completed";
+  status: "open" | "in-progress" | "in_progress" | "completed" | "cancelled";
   ownerAddress: string;
 };
 
@@ -18,12 +19,64 @@ type Toast = {
   message: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const TOKEN_STORAGE_KEY = "stellar-bounty.auth-token";
+
+type AuthTokenResponse = {
+  accessToken: string;
+};
+
 function truncateAddress(address: string) {
   if (address.length <= 14) {
     return address;
   }
 
   return `${address.slice(0, 6)}...${address.slice(-6)}`;
+}
+
+async function getAccessToken(publicKey: string): Promise<string> {
+  const savedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+
+  if (savedToken) {
+    return savedToken;
+  }
+
+  const challengeResponse = await fetch(`${API_URL}/auth/challenge?address=${encodeURIComponent(publicKey)}`);
+  if (!challengeResponse.ok) {
+    throw new Error("Failed to request wallet challenge.");
+  }
+
+  const { nonce } = (await challengeResponse.json()) as { nonce?: string };
+  if (!nonce) {
+    throw new Error("Challenge response was missing a nonce.");
+  }
+
+  const signed = await signMessage(nonce, { address: publicKey });
+  if (signed.error || !signed.signedMessage) {
+    throw new Error(signed.error?.message || "Wallet signature was cancelled.");
+  }
+
+  const verifyResponse = await fetch(`${API_URL}/auth/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      address: publicKey,
+      signature: signed.signedMessage,
+      nonce,
+    }),
+  });
+
+  if (!verifyResponse.ok) {
+    throw new Error("Wallet verification failed.");
+  }
+
+  const { accessToken } = (await verifyResponse.json()) as AuthTokenResponse;
+  if (!accessToken) {
+    throw new Error("Verification did not return an access token.");
+  }
+
+  window.localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
+  return accessToken;
 }
 
 export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
@@ -59,18 +112,22 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
     setToast(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const accessToken = await getAccessToken(publicKey as string);
+      const response = await fetch(`${API_URL}/bounties/${bounty.id}/submissions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ link: workLink, notes, submitter: publicKey }),
+      });
 
-      if (apiUrl) {
-        const response = await fetch(`${apiUrl}/bounties/${bounty.id}/submissions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ link: workLink, notes, submitter: publicKey }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Submission failed. Please try again.");
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
         }
+
+        throw new Error("Submission failed. Please try again.");
       }
 
       setWorkLink("");

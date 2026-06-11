@@ -6,71 +6,81 @@ type Bounty = {
   description: string;
   reward: string;
   deadline: string;
-  status: "open" | "in-progress" | "completed";
+  status: "open" | "in-progress" | "in_progress" | "completed" | "cancelled";
   ownerAddress: string;
 };
 
-const mockBounties: Bounty[] = [
-  {
-    id: "demo",
-    title: "Build a bounty listing page",
-    description:
-      "Create a browsable bounty marketplace landing page with filters, sorting, loading states, and an empty state for the StellarBounty frontend.",
-    reward: "500 XLM",
-    deadline: "2026-06-18",
-    status: "open",
-    ownerAddress: "GAFD5P2D6MX3QJ4S5Z6L7A8B9C0D1E2F3G4H5I6J7K8L9M0N1OP2QR3",
-  },
-  {
-    id: "detail-page",
-    title: "Build a bounty detail page",
-    description:
-      "Create a dynamic detail view that shows the full bounty brief, owner, reward, deadline, status, and lets connected users submit completed work.",
-    reward: "650 XLM",
-    deadline: "2026-07-02",
-    status: "open",
-    ownerAddress: "GCKFBEIYTKP7THSR5SQX4MF2ZW3ZHRLDMW4U74JVGHWA5WYUSM4B4D2K",
-  },
-  {
-    id: "archived-brand-kit",
-    title: "Refresh archived brand kit",
-    description: "Update an older brand kit package and document the assets for future community campaigns.",
-    reward: "120 XLM",
-    deadline: "2026-05-08",
-    status: "completed",
-    ownerAddress: "GB3QW7BPNFOK6LFTJY5MTQUP7ACX6U2OTSN2KZOLKGNHQUHYYJDBV6QM",
-  },
-];
+type ApiBounty = Partial<Omit<Bounty, "reward" | "deadline">> & {
+  reward?: string | number | null;
+  rewardAmount?: string | number | null;
+  amount?: string | number | null;
+  deadline?: string | null;
+  dueDate?: string | null;
+};
 
-async function getBounties(): Promise<Bounty[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-  if (!apiUrl) {
-    return mockBounties;
+function normalizeBounty(bounty: ApiBounty): Bounty | null {
+  if (!bounty.id || !bounty.title || !bounty.description || !bounty.ownerAddress) {
+    return null;
   }
 
-  try {
-    const response = await fetch(`${apiUrl}/bounties`, { next: { revalidate: 60 } });
+  return {
+    id: bounty.id,
+    title: bounty.title,
+    description: bounty.description,
+    reward: String(bounty.reward ?? bounty.rewardAmount ?? bounty.amount ?? "0"),
+    deadline: bounty.deadline ?? bounty.dueDate ?? "No deadline",
+    status: bounty.status ?? "open",
+    ownerAddress: bounty.ownerAddress,
+  };
+}
 
-    if (!response.ok) {
-      return mockBounties;
+async function getBounty(id: string): Promise<Bounty | null> {
+  try {
+    const response = await fetch(`${API_URL}/bounties/${encodeURIComponent(id)}`, { next: { revalidate: 60 } });
+
+    if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+      return null;
     }
 
-    return response.json();
+    return normalizeBounty((await response.json()) as ApiBounty);
   } catch {
-    return mockBounties;
+    return null;
   }
 }
 
 export async function generateStaticParams() {
-  const bounties = await getBounties();
+  try {
+    const response = await fetch(`${API_URL}/bounties`, { next: { revalidate: 60 } });
 
-  return bounties.map((bounty) => ({ id: bounty.id }));
+    if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+      return [];
+    }
+
+    const bounties = (await response.json()) as ApiBounty[];
+
+    return bounties.flatMap((bounty) => (bounty.id ? [{ id: bounty.id }] : []));
+  } catch {
+    return [];
+  }
 }
 
 export default async function BountyDetailPage({ params }: { params: { id: string } }) {
-  const bounties = await getBounties();
-  const bounty = bounties.find((item) => item.id === params.id) ?? mockBounties[1];
+  const bounty = await getBounty(params.id);
+
+  if (!bounty) {
+    return (
+      <main className="min-h-[calc(100vh-73px)] bg-slate-950 px-4 py-10 text-slate-100">
+        <section className="mx-auto max-w-3xl rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+          <h1 className="text-2xl font-bold text-white">Bounty unavailable</h1>
+          <p className="mt-3 text-slate-300">
+            The bounty could not be loaded from the API. Please try again once the backend is available.
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return <BountyDetailClient bounty={bounty} />;
 }
