@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { createCorsOptions } from './cors.config';
 import { setupSwagger } from './swagger.setup';
 
 async function bootstrap() {
@@ -20,8 +21,7 @@ async function bootstrap() {
     req.headers['x-request-id'] = req.headers['x-request-id'] ?? randomUUID();
     next();
   });
-  const corsOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:3000');
-  app.enableCors({ origin: corsOrigin });
+  app.enableCors(createCorsOptions(config));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(app);
