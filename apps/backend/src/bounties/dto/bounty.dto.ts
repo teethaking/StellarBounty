@@ -3,12 +3,13 @@ import {
   IsString,
   IsOptional,
   IsArray,
-  IsDateString,
+  IsISO8601,
   IsEnum,
   IsNotEmpty,
   MinLength,
   MaxLength,
 } from 'class-validator';
+import { BountyStatus } from '../../entities/bounty.entity';
 
 export class CreateBountyDto {
   @ApiProperty({
@@ -32,12 +33,20 @@ export class CreateBountyDto {
   description!: string;
 
   @ApiProperty({
-    description: 'Reward amount in XLM (1 XLM = 1 stroop = 0.0000001 XLM)',
-    example: '100',
+    description: 'Reward amount in XLM (in stroops)',
+    example: '10000000',
   })
   @IsString()
   @IsNotEmpty()
-  reward!: string;
+  rewardAmount!: string;
+
+  @ApiProperty({
+    description: 'Stellar wallet address of the bounty owner',
+    example: 'GABC...',
+  })
+  @IsString()
+  @IsNotEmpty()
+  ownerAddress!: string;
 
   @ApiPropertyOptional({
     description: 'Array of tags for categorization',
@@ -49,13 +58,13 @@ export class CreateBountyDto {
   @IsString({ each: true })
   tags?: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Deadline for the bounty (ISO 8601)',
     example: '2025-12-31T23:59:59Z',
   })
-  @IsDateString()
-  @IsNotEmpty()
-  deadline!: string;
+  @IsOptional()
+  @IsISO8601()
+  deadline?: string;
 }
 
 export class UpdateBountyDto {
@@ -73,10 +82,15 @@ export class UpdateBountyDto {
   @MaxLength(5000)
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Updated reward in XLM' })
+  @ApiPropertyOptional({ description: 'Updated reward amount in XLM' })
   @IsOptional()
   @IsString()
-  reward?: string;
+  rewardAmount?: string;
+
+  @ApiPropertyOptional({ description: 'Bounty owner wallet address' })
+  @IsOptional()
+  @IsString()
+  ownerAddress?: string;
 
   @ApiPropertyOptional({ description: 'Updated tags', type: [String] })
   @IsOptional()
@@ -86,16 +100,16 @@ export class UpdateBountyDto {
 
   @ApiPropertyOptional({ description: 'Updated deadline (ISO 8601)' })
   @IsOptional()
-  @IsDateString()
+  @IsISO8601()
   deadline?: string;
 
   @ApiPropertyOptional({
     description: 'Bounty status',
-    enum: ['open', 'closed', 'in_progress'],
+    enum: BountyStatus,
   })
   @IsOptional()
-  @IsEnum(['open', 'closed', 'in_progress'])
-  status?: string;
+  @IsEnum(BountyStatus)
+  status?: BountyStatus;
 }
 
 export class BountyResponseDto {
@@ -113,7 +127,7 @@ export class BountyResponseDto {
 
   @ApiProperty({ description: 'Reward in XLM' })
   @IsString()
-  reward!: string;
+  rewardAmount!: string;
 
   @ApiProperty({ description: 'Deadline date' })
   @IsString()
@@ -121,7 +135,7 @@ export class BountyResponseDto {
 
   @ApiProperty({
     description: 'Current status',
-    enum: ['open', 'closed', 'in_progress'],
+    enum: BountyStatus,
   })
   @IsString()
   status!: string;
