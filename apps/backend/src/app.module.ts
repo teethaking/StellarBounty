@@ -12,6 +12,7 @@ import { Submission } from './entities/submission.entity';
 import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
 import { SubmissionsController } from './submissions.controller';
 import { SubmissionsService } from './submissions.service';
+import { SubmissionsModule } from './submissions/submissions.module';
 
 @Module({
   imports: [
