@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 
 interface ErrorPageProps {
@@ -17,14 +18,27 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       <h1 className="text-7xl font-black tracking-tight text-red-500/50">500</h1>
       <p className="mt-4 text-lg text-slate-300">Something went wrong</p>
       <p className="mt-2 max-w-md text-sm text-slate-500">
-        An unexpected error occurred. Please try again.
+        {error.message || "An unexpected error occurred. Please try again."}
       </p>
-      <button
-        onClick={reset}
-        className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
-      >
-        Try again
-      </button>
+      {error.digest && (
+        <p className="mt-1 font-mono text-xs text-slate-600">
+          Error ID: {error.digest}
+        </p>
+      )}
+      <div className="mt-6 flex gap-3">
+        <button
+          onClick={reset}
+          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+        >
+          Try again
+        </button>
+        <Link
+          href="/"
+          className="rounded-lg border border-slate-700 px-5 py-2.5 text-sm font-medium text-slate-200 transition hover:border-yellow-400 hover:text-yellow-300"
+        >
+          Go home
+        </Link>
+      </div>
     </main>
   );
 }
