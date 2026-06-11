@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useWallet } from "../../components/WalletContext";
+import { StatusBadge } from "../../components/StatusBadge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -22,26 +23,6 @@ type Bounty = {
   openSubmissionCount: number;
   status: BountyStatus;
 };
-
-const STATUS_BADGE: Record<SubmissionStatus | BountyStatus, string> = {
-  pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  approved: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  rejected: "bg-red-500/20 text-red-400 border-red-500/30",
-  open: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  in_progress: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  cancelled: "bg-slate-500/20 text-slate-400 border-slate-500/30",
-};
-
-function StatusBadge({ status }: { status: SubmissionStatus | BountyStatus }) {
-  return (
-    <span
-      className={`px-2 py-0.5 text-xs font-medium rounded border ${STATUS_BADGE[status]}`}
-    >
-      {status.replace("_", " ")}
-    </span>
-  );
-}
 
 function EmptyState({ message }: { message: string }) {
   return (
