@@ -9,6 +9,8 @@ import MarkdownRenderer from "@/app/components/MarkdownRenderer";
 import { useWallet } from "@/components/WalletContext";
 import { useAuth } from "@/lib/api";
 
+const MAX_REWARD_AMOUNT = 1_000_000_000;
+
 const createBountySchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
   description: z.string().trim().min(1, "Description is required."),
@@ -16,9 +18,11 @@ const createBountySchema = z.object({
     .string()
     .trim()
     .min(1, "Reward amount is required.")
+    .regex(/^\d+$/, "Reward must be a whole number.")
+    .refine((value) => Number(value) > 0, "Reward must be greater than 0.")
     .refine(
-      (value) => Number.isFinite(Number(value)) && Number(value) > 0,
-      "Reward must be a positive number."
+      (value) => Number(value) <= MAX_REWARD_AMOUNT,
+      `Reward must be ${MAX_REWARD_AMOUNT.toLocaleString()} XLM or less.`
     ),
   deadline: z.string().min(1, "Deadline is required."),
 });
@@ -159,7 +163,7 @@ export default function CreateBountyPage() {
               <input
                 id="reward"
                 type="text"
-                inputMode="decimal"
+                inputMode="numeric"
                 {...register("reward")}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
                 placeholder="e.g. 500"
