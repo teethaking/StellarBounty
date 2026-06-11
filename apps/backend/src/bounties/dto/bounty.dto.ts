@@ -8,8 +8,30 @@ import {
   IsNotEmpty,
   MinLength,
   MaxLength,
+  ValidateBy,
 } from 'class-validator';
 import { BountyStatus } from '../../entities/bounty.entity';
+
+export const MAX_REWARD_AMOUNT = 1_000_000_000n;
+
+function IsRewardAmount() {
+  return ValidateBy({
+    name: 'isRewardAmount',
+    validator: {
+      validate(value: unknown) {
+        if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+          return false;
+        }
+
+        const amount = BigInt(value);
+        return amount > 0n && amount <= MAX_REWARD_AMOUNT;
+      },
+      defaultMessage() {
+        return `rewardAmount must be a whole number between 1 and ${MAX_REWARD_AMOUNT.toString()}`;
+      },
+    },
+  });
+}
 
 export class CreateBountyDto {
   @ApiProperty({
@@ -38,6 +60,7 @@ export class CreateBountyDto {
   })
   @IsString()
   @IsNotEmpty()
+  @IsRewardAmount()
   rewardAmount!: string;
 
   @ApiProperty({
@@ -85,6 +108,7 @@ export class UpdateBountyDto {
   @ApiPropertyOptional({ description: 'Updated reward amount in XLM' })
   @IsOptional()
   @IsString()
+  @IsRewardAmount()
   rewardAmount?: string;
 
   @ApiPropertyOptional({ description: 'Bounty owner wallet address' })
