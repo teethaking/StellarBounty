@@ -39,6 +39,7 @@ function formatDeadline(deadline: BountyCardData["deadline"]) {
 
 export default function BountyCard({ bounty }: BountyCardProps) {
   const status = bounty.status ?? "open";
+  const statusLabel = status.replace(/_/g, " ");
 
   return (
     <Link
@@ -50,7 +51,7 @@ export default function BountyCard({ bounty }: BountyCardProps) {
           {bounty.title}
         </h2>
         <span className="shrink-0 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium capitalize text-emerald-300">
-          {status}
+          {statusLabel}
         </span>
       </div>
 
