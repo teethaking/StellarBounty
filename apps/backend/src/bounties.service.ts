@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateBountyDto, UpdateBountyDto } from './bounties.dto';
+import { CreateBountyDto, UpdateBountyDto } from './bounties/dto/bounty.dto';
 import { Bounty } from './entities/bounty.entity';
 
 @Injectable()
