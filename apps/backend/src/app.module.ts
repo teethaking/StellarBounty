@@ -22,6 +22,7 @@ import { SubmissionsModule } from './submissions/submissions.module';
         DATABASE_URL: Joi.string().required(),
         JWT_SECRET: Joi.string().required(),
         STELLAR_NETWORK: Joi.string().valid('testnet', 'mainnet').required(),
+        CORS_ORIGIN: Joi.string().uri().default('http://localhost:3000'),
         PORT: Joi.number().default(4000),
       }),
     }),

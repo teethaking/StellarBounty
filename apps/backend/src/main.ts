@@ -12,7 +12,8 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   app.use(helmet());
-  app.enableCors();
+  const corsOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:3000');
+  app.enableCors({ origin: corsOrigin });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(app);
