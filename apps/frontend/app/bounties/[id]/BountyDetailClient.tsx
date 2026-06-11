@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { signMessage } from "@stellar/freighter-api";
 import { useWallet } from "@/components/WalletContext";
+import { StatusBadge } from "@/components/StatusBadge";
+import { useAuth } from "@/lib/api";
 
 type Bounty = {
   id: string;
@@ -19,68 +20,14 @@ type Toast = {
   message: string;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const TOKEN_STORAGE_KEY = "stellar-bounty.auth-token";
-
-type AuthTokenResponse = {
-  accessToken: string;
-};
-
 function truncateAddress(address: string) {
-  if (address.length <= 14) {
-    return address;
-  }
-
+  if (address.length <= 14) return address;
   return `${address.slice(0, 6)}...${address.slice(-6)}`;
-}
-
-async function getAccessToken(publicKey: string): Promise<string> {
-  const savedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-
-  if (savedToken) {
-    return savedToken;
-  }
-
-  const challengeResponse = await fetch(`${API_URL}/auth/challenge?address=${encodeURIComponent(publicKey)}`);
-  if (!challengeResponse.ok) {
-    throw new Error("Failed to request wallet challenge.");
-  }
-
-  const { nonce } = (await challengeResponse.json()) as { nonce?: string };
-  if (!nonce) {
-    throw new Error("Challenge response was missing a nonce.");
-  }
-
-  const signed = await signMessage(nonce, { address: publicKey });
-  if (signed.error || !signed.signedMessage) {
-    throw new Error(signed.error?.message || "Wallet signature was cancelled.");
-  }
-
-  const verifyResponse = await fetch(`${API_URL}/auth/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      address: publicKey,
-      signature: signed.signedMessage,
-      nonce,
-    }),
-  });
-
-  if (!verifyResponse.ok) {
-    throw new Error("Wallet verification failed.");
-  }
-
-  const { accessToken } = (await verifyResponse.json()) as AuthTokenResponse;
-  if (!accessToken) {
-    throw new Error("Verification did not return an access token.");
-  }
-
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
-  return accessToken;
 }
 
 export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
   const { publicKey } = useWallet();
+  const { getToken, clearToken, apiUrl } = useAuth();
   const [workLink, setWorkLink] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,14 +36,8 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
   const isOpen = bounty.status === "open";
   const canSubmit = Boolean(publicKey) && isOpen;
   const disabledReason = useMemo(() => {
-    if (!isOpen) {
-      return "Submissions are closed for this bounty.";
-    }
-
-    if (!publicKey) {
-      return "Connect your wallet to submit work.";
-    }
-
+    if (!isOpen) return "Submissions are closed for this bounty.";
+    if (!publicKey) return "Connect your wallet to submit work.";
     return null;
   }, [isOpen, publicKey]);
 
@@ -112,8 +53,8 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
     setToast(null);
 
     try {
-      const accessToken = await getAccessToken(publicKey as string);
-      const response = await fetch(`${API_URL}/bounties/${bounty.id}/submissions`, {
+      const accessToken = await getToken(publicKey as string);
+      const response = await fetch(`${apiUrl}/bounties/${bounty.id}/submissions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -123,10 +64,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-        }
-
+        if (response.status === 401) clearToken();
         throw new Error("Submission failed. Please try again.");
       }
 
@@ -143,25 +81,35 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
     }
   }
 
+  const statusKey = bounty.status.replace(/-/g, "_") as
+    | "open"
+    | "in_progress"
+    | "completed"
+    | "cancelled";
+
   return (
     <main className="min-h-[calc(100vh-73px)] bg-slate-950 px-4 py-10 text-slate-100">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1fr_380px]">
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/40">
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-300">
-              {bounty.status}
-            </span>
+            <StatusBadge status={statusKey} />
             <span className="text-sm text-slate-400">Reward: {bounty.reward}</span>
             <span className="text-sm text-slate-400">Deadline: {bounty.deadline}</span>
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{bounty.title}</h1>
-          <p className="mt-5 whitespace-pre-line text-base leading-7 text-slate-300">{bounty.description}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            {bounty.title}
+          </h1>
+          <p className="mt-5 whitespace-pre-line text-base leading-7 text-slate-300">
+            {bounty.description}
+          </p>
 
           <dl className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <dt className="text-xs uppercase tracking-wide text-slate-500">Owner</dt>
-              <dd className="mt-2 font-mono text-sm text-slate-200">{truncateAddress(bounty.ownerAddress)}</dd>
+              <dd className="mt-2 font-mono text-sm text-slate-200">
+                {truncateAddress(bounty.ownerAddress)}
+              </dd>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <dt className="text-xs uppercase tracking-wide text-slate-500">Reward</dt>
@@ -169,16 +117,20 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <dt className="text-xs uppercase tracking-wide text-slate-500">Status</dt>
-              <dd className="mt-2 text-sm font-semibold capitalize text-slate-200">{bounty.status}</dd>
+              <dd className="mt-2 text-sm font-semibold capitalize text-slate-200">
+                {bounty.status}
+              </dd>
             </div>
           </dl>
         </section>
 
         <aside className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/40">
           <h2 className="text-xl font-semibold text-white">Submit work</h2>
-          <p className="mt-2 text-sm text-slate-400">Share a PR, demo, or document link with implementation notes.</p>
+          <p className="mt-2 text-sm text-slate-400">
+            Share a PR, demo, or document link with implementation notes.
+          </p>
 
-          {toast ? (
+          {toast && (
             <div
               className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
                 toast.type === "success"
@@ -189,7 +141,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
             >
               {toast.message}
             </div>
-          ) : null}
+          )}
 
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
@@ -198,7 +150,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
                 required
                 type="url"
                 value={workLink}
-                onChange={(event) => setWorkLink(event.target.value)}
+                onChange={(e) => setWorkLink(e.target.value)}
                 disabled={!canSubmit || isSubmitting}
                 placeholder="https://github.com/..."
                 className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -210,7 +162,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
               <textarea
                 required
                 value={notes}
-                onChange={(event) => setNotes(event.target.value)}
+                onChange={(e) => setNotes(e.target.value)}
                 disabled={!canSubmit || isSubmitting}
                 rows={5}
                 placeholder="Summarize the work and verification steps."
@@ -218,7 +170,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
               />
             </label>
 
-            {disabledReason ? <p className="text-sm text-amber-300">{disabledReason}</p> : null}
+            {disabledReason && <p className="text-sm text-amber-300">{disabledReason}</p>}
 
             <button
               type="submit"
