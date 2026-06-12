@@ -14,6 +14,10 @@ import { Nonce } from './entities/nonce.entity';
 import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
 import { AddNoncesTable1747657300000 } from './migrations/1747657300000-AddNoncesTable';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { MetricsMiddleware } from './metrics/metrics.middleware';
+import { MetricsModule } from './metrics/metrics.module';
+import { MetricsService } from './metrics/metrics.service';
+import { TypeOrmMetricsLogger } from './metrics/typeorm-metrics.logger';
 import { SubmissionsModule } from './submissions/submissions.module';
 
 @Module({
@@ -35,15 +39,18 @@ import { SubmissionsModule } from './submissions/submissions.module';
     AuthModule,
     SubmissionsModule,
     HealthModule,
+    MetricsModule,
     TypeOrmModule.forFeature([Bounty, Nonce]),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
+      imports: [ConfigModule, MetricsModule],
+      inject: [ConfigService, MetricsService],
+      useFactory: (config: ConfigService, metrics: MetricsService) => ({
         type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         entities: [Bounty, Submission, Nonce],
         migrations: [InitSchema1747657200000, AddNoncesTable1747657300000],
+        logger: new TypeOrmMetricsLogger(metrics),
+        maxQueryExecutionTime: 250,
         synchronize: false,
       }),
     }),
@@ -53,6 +60,6 @@ import { SubmissionsModule } from './submissions/submissions.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*');
+    consumer.apply(MetricsMiddleware, LoggerMiddleware).forRoutes('*');
   }
 }
