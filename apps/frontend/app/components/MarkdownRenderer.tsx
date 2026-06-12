@@ -14,7 +14,9 @@ interface MarkdownRendererProps {
  */
 export default function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   return (
-    <div className={`prose prose-invert prose-sm max-w-none ${className || ""}`}>
+    <div
+      className={`prose prose-invert prose-sm max-w-none break-words [overflow-wrap:anywhere] [&_code]:whitespace-pre-wrap [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre [&_table]:min-w-max ${className || ""}`}
+    >
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );

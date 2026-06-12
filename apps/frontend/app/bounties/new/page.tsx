@@ -141,11 +141,11 @@ export default function CreateBountyPage() {
   if (!publicKey) return null;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold">Create a New Bounty</h1>
+    <main className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+        <h1 className="mb-6 break-words text-2xl font-bold sm:text-3xl">Create a New Bounty</h1>
 
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={onSubmit} className="min-w-0 space-y-6">
           <div>
             <label htmlFor="title" className="mb-1 block text-sm font-medium text-slate-300">
               Title
@@ -154,7 +154,7 @@ export default function CreateBountyPage() {
               id="title"
               type="text"
               {...register("title")}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
+              className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
               placeholder="e.g. Build a bounty listing page"
             />
             {errors.title && <p className={fieldErrorClass}>{errors.title.message}</p>}
@@ -170,7 +170,7 @@ export default function CreateBountyPage() {
                 type="text"
                 inputMode="numeric"
                 {...register("reward")}
-                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
+                className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
                 placeholder="e.g. 500"
               />
               {errors.reward && <p className={fieldErrorClass}>{errors.reward.message}</p>}
@@ -183,7 +183,7 @@ export default function CreateBountyPage() {
                 id="deadline"
                 type="date"
                 {...register("deadline")}
-                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
+                className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
               />
               {errors.deadline && <p className={fieldErrorClass}>{errors.deadline.message}</p>}
             </div>
@@ -194,11 +194,11 @@ export default function CreateBountyPage() {
               Description (supports Markdown)
             </label>
 
-            <div className="mb-0 flex border-b border-slate-700">
+            <div className="mb-0 flex overflow-hidden rounded-t-lg border border-b-0 border-slate-700">
               <button
                 type="button"
                 onClick={() => setActiveTab("write")}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`min-h-11 flex-1 px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
                   activeTab === "write"
                     ? "border-b-2 border-blue-500 text-blue-400"
                     : "border-b-2 border-transparent text-slate-400 hover:text-slate-200"
@@ -209,7 +209,7 @@ export default function CreateBountyPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("preview")}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                className={`min-h-11 flex-1 px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
                   activeTab === "preview"
                     ? "border-b-2 border-blue-500 text-blue-400"
                     : "border-b-2 border-transparent text-slate-400 hover:text-slate-200"
@@ -223,11 +223,11 @@ export default function CreateBountyPage() {
               <textarea
                 rows={12}
                 {...register("description")}
-                className="w-full resize-y rounded-b-lg border border-t-0 border-slate-700 bg-slate-900 p-4 font-mono text-sm text-slate-100 focus:border-blue-500 focus:outline-none"
+                className="min-h-64 w-full resize-y rounded-b-lg border border-slate-700 bg-slate-900 p-4 font-mono text-sm text-slate-100 focus:border-blue-500 focus:outline-none"
                 placeholder="Write your bounty requirements in markdown..."
               />
             ) : (
-              <div className="min-h-[200px] rounded-b-lg border border-t-0 border-slate-700 bg-slate-900 p-4">
+              <div className="min-h-64 min-w-0 overflow-x-auto rounded-b-lg border border-slate-700 bg-slate-900 p-4">
                 {description ? (
                   <MarkdownRenderer content={description} />
                 ) : (
@@ -246,11 +246,11 @@ export default function CreateBountyPage() {
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex justify-stretch sm:justify-end">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+              className="min-h-11 w-full rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {isSubmitting ? "Creating..." : "Create Bounty"}
             </button>

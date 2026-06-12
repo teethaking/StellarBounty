@@ -80,32 +80,32 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
     | "cancelled";
 
   return (
-    <main className="min-h-[calc(100vh-73px)] bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1fr_380px]">
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/40">
-          <div className="mb-6 flex flex-wrap items-center gap-3">
+    <main className="min-h-[calc(100vh-73px)] overflow-x-hidden bg-slate-950 px-3 py-6 text-slate-100 sm:px-4 sm:py-10">
+      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+        <section className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-2xl shadow-slate-950/40 sm:p-6">
+          <div className="mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <StatusBadge status={statusKey} />
-            <span className="text-sm text-slate-400">Reward: {bounty.reward}</span>
-            <span className="text-sm text-slate-400">Deadline: {bounty.deadline}</span>
+            <span className="break-words text-sm text-slate-400">Reward: {bounty.reward}</span>
+            <span className="break-words text-sm text-slate-400">Deadline: {bounty.deadline}</span>
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <h1 className="break-words text-2xl font-bold tracking-tight text-white sm:text-4xl">
             {bounty.title}
           </h1>
-          <p className="mt-5 whitespace-pre-line text-base leading-7 text-slate-300">
+          <p className="mt-5 whitespace-pre-line break-words text-base leading-7 text-slate-300">
             {bounty.description}
           </p>
 
           <dl className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <dt className="text-xs uppercase tracking-wide text-slate-500">Owner</dt>
-              <dd className="mt-2 font-mono text-sm text-slate-200">
+              <dd className="mt-2 break-all font-mono text-sm text-slate-200">
                 {truncateAddress(bounty.ownerAddress)}
               </dd>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <dt className="text-xs uppercase tracking-wide text-slate-500">Reward</dt>
-              <dd className="mt-2 text-sm font-semibold text-slate-200">{bounty.reward}</dd>
+              <dd className="mt-2 break-words text-sm font-semibold text-slate-200">{bounty.reward}</dd>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <dt className="text-xs uppercase tracking-wide text-slate-500">Status</dt>
@@ -116,7 +116,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
           </dl>
         </section>
 
-        <aside className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/40">
+        <aside className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-2xl shadow-slate-950/40 sm:p-6">
           <h2 className="text-xl font-semibold text-white">Submit work</h2>
           <p className="mt-2 text-sm text-slate-400">
             Share a PR, demo, or document link with implementation notes.
@@ -132,7 +132,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
                 onChange={(e) => setWorkLink(e.target.value)}
                 disabled={!canSubmit || isSubmitting}
                 placeholder="https://github.com/..."
-                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 min-h-11 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
               />
             </label>
 
@@ -145,7 +145,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
                 disabled={!canSubmit || isSubmitting}
                 rows={5}
                 placeholder="Summarize the work and verification steps."
-                className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 min-h-32 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
               />
             </label>
 
@@ -154,7 +154,7 @@ export default function BountyDetailClient({ bounty }: { bounty: Bounty }) {
             <button
               type="submit"
               disabled={!canSubmit || isSubmitting}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+              className="min-h-11 w-full rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
             >
               {isSubmitting ? "Submitting..." : "Submit work"}
             </button>

@@ -38,43 +38,43 @@ Build a real bounty listing page that fetches from the backend.
 `;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <main className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+      <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:py-8">
         {/* Back link */}
-        <Link href="/" className="text-blue-400 hover:text-blue-300 text-sm mb-6 inline-block">
+        <Link href="/" className="mb-6 inline-flex min-h-11 items-center text-sm text-blue-400 hover:text-blue-300">
           &larr; Back to home
         </Link>
 
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="px-2 py-0.5 text-xs font-medium rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <span className="w-fit rounded border border-emerald-500/30 bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-400">
               open
             </span>
-            <span className="text-sm text-slate-400">Reward: 500 XLM</span>
-            <span className="text-sm text-slate-400">Deadline: 2026-06-18</span>
+            <span className="break-words text-sm text-slate-400">Reward: 500 XLM</span>
+            <span className="break-words text-sm text-slate-400">Deadline: 2026-06-18</span>
           </div>
-          <h1 className="text-2xl font-bold">Build a bounty listing page</h1>
+          <h1 className="break-words text-2xl font-bold">Build a bounty listing page</h1>
         </div>
 
         {/* Markdown rendered description */}
-        <div className="bg-slate-900 rounded-lg border border-slate-800">
-          <div className="px-4 py-3 border-b border-slate-800 text-sm text-slate-400">
+        <div className="min-w-0 rounded-lg border border-slate-800 bg-slate-900">
+          <div className="border-b border-slate-800 px-4 py-3 text-sm text-slate-400">
             Description (rendered from Markdown)
           </div>
-          <div className="p-6">
+          <div className="min-w-0 p-4 sm:p-6">
             <MarkdownRenderer content={demoDescription} />
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="mt-6 flex gap-3">
-          <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button className="min-h-11 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700">
             Claim Bounty
           </button>
           <Link
             href="/bounties/new"
-            className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg border border-slate-700 transition-colors"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-6 py-2 font-medium text-slate-200 transition-colors hover:bg-slate-700"
           >
             Create New
           </Link>
