@@ -10,6 +10,7 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { createCorsOptions } from './cors.config';
 import { setupSwagger } from './swagger.setup';
+import { createValidationPipeOptions } from './validation-pipe.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -22,7 +23,7 @@ async function bootstrap() {
     next();
   });
   app.enableCors(createCorsOptions(config));
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new ValidationPipe(createValidationPipeOptions()));
   app.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(app);
 
