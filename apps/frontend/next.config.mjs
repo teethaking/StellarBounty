@@ -23,6 +23,7 @@ process.env.NEXT_PUBLIC_STELLAR_NETWORK = publicEnv.data.NEXT_PUBLIC_STELLAR_NET
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   env: {
     NEXT_PUBLIC_API_URL: publicEnv.data.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_STELLAR_NETWORK: publicEnv.data.NEXT_PUBLIC_STELLAR_NETWORK,
