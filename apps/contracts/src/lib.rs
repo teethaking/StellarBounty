@@ -22,6 +22,11 @@ impl EscrowContract {
     /// Initialize a bounty. Sets owner, amount, token address, arbitrator, and status to Created.
     pub fn initialize(env: Env, owner: Address, amount: i128, token_address: Address, arbitrator: Address) {
         owner.require_auth();
+        assert!(amount > 0, "amount must be positive");
+        assert!(
+            !env.storage().instance().has(&symbol_short!("STATUS")),
+            "contract already initialized"
+        );
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
         env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
@@ -286,6 +291,31 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_initialize_rejects_zero_amount() {
+        let (_, client, owner, token_address, _, arbitrator, _) = setup();
+        client.initialize(&owner, &0, &token_address, &arbitrator);
+    }
+
+    #[test]
+    #[should_panic(expected = "amount must be positive")]
+    fn test_initialize_rejects_negative_amount() {
+        let (_, client, owner, token_address, _, arbitrator, _) = setup();
+        client.initialize(&owner, &-1, &token_address, &arbitrator);
+    }
+
+    #[test]
+    #[should_panic(expected = "contract already initialized")]
+    fn test_reinitialize_after_deploy_panics_to_protect_upgrade_state() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+
+        let new_owner = Address::generate(&env);
+        let new_arbitrator = Address::generate(&env);
+        client.initialize(&new_owner, &500, &token_address, &new_arbitrator);
+    }
+
+    #[test]
     fn test_fund_transfers_tokens_and_transitions() {
         let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
@@ -298,6 +328,27 @@ mod tests {
         assert_eq!(client.get_status(), BountyStatus::Funded);
         assert_eq!(token.balance(&owner), 0);
         assert_eq!(token.balance(&contract_id), amount);
+    }
+
+    #[test]
+    #[should_panic(expected = "only owner can call this")]
+    fn test_fund_by_non_owner_panics() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+
+        let not_owner = Address::generate(&env);
+        client.fund(&not_owner);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fund_with_insufficient_allowance_panics() {
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
+        let token = TokenClient::new(&env, &token_address);
+        token.approve(&owner, &contract_id, &(amount - 1), &200);
+
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
     }
 
     #[test]
@@ -357,6 +408,16 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "start_work requires Funded status")]
+    fn test_start_work_before_funding_panics() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+
+        let contributor = Address::generate(&env);
+        client.start_work(&contributor);
+    }
+
+    #[test]
     fn test_submit_transitions_to_under_review() {
         let (env, client, owner, token_address, _, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
@@ -365,6 +426,19 @@ mod tests {
         client.start_work(&contributor);
         client.submit(&contributor);
         assert_eq!(client.get_status(), BountyStatus::UnderReview);
+    }
+
+    #[test]
+    #[should_panic(expected = "only contributor can call this")]
+    fn test_submit_by_non_contributor_panics() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
+        let contributor = Address::generate(&env);
+        client.start_work(&contributor);
+
+        let not_contributor = Address::generate(&env);
+        client.submit(&not_contributor);
     }
 
     #[test]
@@ -456,6 +530,18 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "approve requires UnderReview status")]
+    fn test_approve_before_submit_panics() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
+        let contributor = Address::generate(&env);
+        client.start_work(&contributor);
+
+        client.approve(&owner);
+    }
+
+    #[test]
     #[should_panic(expected = "cancel only allowed from Created or Funded")]
     fn test_cancel_from_in_progress_panics() {
         let (env, client, owner, token_address, _, arbitrator, amount) = setup();
@@ -473,5 +559,12 @@ mod tests {
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         client.fund(&owner);
+    }
+
+    #[test]
+    #[should_panic(expected = "resolve requires Disputed status")]
+    fn test_resolve_before_dispute_panics() {
+        let (_, client, _, _, _, arbitrator, contributor, _) = setup_under_review();
+        client.resolve(&arbitrator, &contributor);
     }
 }
