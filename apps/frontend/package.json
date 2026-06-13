@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "jest",
-    "test:e2e": "rm -rf .next && NEXT_PUBLIC_API_URL=http://127.0.0.1:${E2E_API_PORT:-4100} NEXT_PUBLIC_STELLAR_NETWORK=testnet next build && playwright test",
+    "test:e2e": "node tests/e2e/run-e2e.mjs",
     "lint": "next lint",
     "format": "prettier --write ."
   },

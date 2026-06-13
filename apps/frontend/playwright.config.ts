@@ -14,20 +14,12 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${frontendPort}`,
     trace: "on-first-retry",
   },
-  webServer: [
-    {
-      command: `node tests/e2e/mock-api-server.mjs ${apiPort}`,
-      url: `http://127.0.0.1:${apiPort}/health`,
-      reuseExistingServer: false,
-      timeout: 30_000,
-    },
-    {
-      command: `NEXT_PUBLIC_API_URL=http://127.0.0.1:${apiPort} NEXT_PUBLIC_STELLAR_NETWORK=testnet npm run start -- -H 127.0.0.1 -p ${frontendPort}`,
-      url: `http://127.0.0.1:${frontendPort}`,
-      reuseExistingServer: false,
-      timeout: 30_000,
-    },
-  ],
+  webServer: {
+    command: `NEXT_PUBLIC_API_URL=http://127.0.0.1:${apiPort} NEXT_PUBLIC_STELLAR_NETWORK=testnet npm run start -- -H 127.0.0.1 -p ${frontendPort}`,
+    url: `http://127.0.0.1:${frontendPort}`,
+    reuseExistingServer: false,
+    timeout: 30_000,
+  },
   projects: [
     {
       name: "chromium",
