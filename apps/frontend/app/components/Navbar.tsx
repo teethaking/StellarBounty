@@ -48,12 +48,12 @@ export default function Navbar() {
         `}
             >
                 <nav
-                    className="mx-auto flex h-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6"
+                    className="mx-auto flex h-full max-w-6xl items-center justify-between gap-3 px-3 sm:px-6"
                     aria-label="Main navigation"
                 >
                     <Link
                         href="/"
-                        className="text-lg font-semibold tracking-normal text-slate-50 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
+                        className="inline-flex min-h-11 items-center rounded-md px-1 text-base font-semibold tracking-normal text-slate-50 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:text-lg"
                     >
                         StellarBounty
                     </Link>
@@ -64,7 +64,7 @@ export default function Navbar() {
                                 <Link
                                     href={href}
                                     className={`
-                    relative px-4 py-2 rounded-md text-sm font-medium transition-colors duration-150
+                    relative flex min-h-11 items-center rounded-md px-4 py-2 text-sm font-medium transition-colors duration-150
                     focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
                     ${isActive(href)
                                             ? "text-slate-50 bg-slate-800"
@@ -82,14 +82,14 @@ export default function Navbar() {
                         ))}
                     </ul>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                         <div className="hidden md:block">
                             <ConnectWalletButton />
                         </div>
 
                         <button
                             onClick={() => setDrawerOpen((v) => !v)}
-                            className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:text-slate-50 hover:bg-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 md:hidden"
                             aria-label={drawerOpen ? "Close menu" : "Open menu"}
                             aria-expanded={drawerOpen}
                             aria-controls="mobile-drawer"
@@ -122,13 +122,13 @@ export default function Navbar() {
                 aria-modal="true"
                 aria-label="Mobile navigation"
                 className={`
-          fixed top-16 right-0 bottom-0 z-40 w-72 md:hidden
+          fixed top-16 right-0 bottom-0 z-40 w-[min(18rem,100vw)]
           bg-slate-900 border-l border-slate-800
           transform transition-transform duration-300 ease-in-out
-          ${drawerOpen ? "translate-x-0" : "translate-x-full"}
+          ${drawerOpen ? "translate-x-0 md:hidden" : "hidden translate-x-full"}
         `}
             >
-                <div className="flex flex-col h-full p-6 gap-2">
+                <div className="flex h-full flex-col gap-2 overflow-y-auto p-4 sm:p-6">
                     <nav aria-label="Mobile navigation">
                         <ul className="space-y-1" role="list">
                             {NAV_LINKS.map(({ label, href }) => (
@@ -136,7 +136,7 @@ export default function Navbar() {
                                     <Link
                                         href={href}
                                         className={`
-                      flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
+                      flex min-h-11 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors
                       focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
                       ${isActive(href)
                                                 ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30"
