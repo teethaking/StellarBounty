@@ -15,6 +15,7 @@ import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
 import { AddNoncesTable1747657300000 } from './migrations/1747657300000-AddNoncesTable';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { SubmissionsModule } from './submissions/submissions.module';
+import { DeadlineAutomationService } from './bounties/deadline-automation.service';
 
 @Module({
   imports: [
@@ -29,6 +30,10 @@ import { SubmissionsModule } from './submissions/submissions.module';
         AUTH_RATE_LIMIT_TTL_MS: Joi.number().integer().positive().default(60000),
         AUTH_CHALLENGE_RATE_LIMIT: Joi.number().integer().positive().default(5),
         AUTH_VERIFY_RATE_LIMIT: Joi.number().integer().positive().default(10),
+        BOUNTY_DEADLINE_AUTOMATION_ENABLED: Joi.boolean().default(true),
+        BOUNTY_DEADLINE_AUTOMATION_INTERVAL_MS: Joi.number().integer().positive().default(900000),
+        BOUNTY_DEADLINE_GRACE_PERIOD_MS: Joi.number().integer().min(0).default(86400000),
+        BOUNTY_DEADLINE_REMINDER_WINDOW_MS: Joi.number().integer().min(0).default(172800000),
         PORT: Joi.number().default(4000),
       }),
     }),
@@ -49,7 +54,7 @@ import { SubmissionsModule } from './submissions/submissions.module';
     }),
   ],
   controllers: [AppController, BountiesController],
-  providers: [AppService, BountiesService],
+  providers: [AppService, BountiesService, DeadlineAutomationService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
