@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "jest",
+    "test:e2e": "node tests/e2e/run-e2e.mjs",
     "lint": "next lint",
     "format": "prettier --write ."
   },
@@ -22,6 +23,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.14.2",
@@ -43,6 +45,9 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "<rootDir>/tests/e2e/"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
     }
