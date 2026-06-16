@@ -51,4 +51,11 @@ describe('MetricsService', () => {
     expect(output).toContain('route="/bad\\"path"');
     expect(output).toContain('stellar_bounty_websocket_connections_active 0');
   });
+
+  it('resets metrics between invocations', () => {
+    service.recordCircuitBreakerStateChange('rpc', 1);
+    service.reset();
+    const output = service.renderPrometheus();
+    expect(output).toContain('stellar_bounty_circuit_breaker_state 0');
+  });
 });

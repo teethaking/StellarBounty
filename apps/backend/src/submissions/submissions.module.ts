@@ -4,10 +4,14 @@ import { Bounty } from '../entities/bounty.entity';
 import { Submission } from '../entities/submission.entity';
 import { SubmissionsController } from './submissions.controller';
 import { SubmissionsService } from './submissions.service';
+import { StellarRpcClient } from '../common/stellar-rpc-client';
+import { CircuitBreaker } from '../common/circuit-breaker';
+import { MetricsModule } from '../metrics/metrics.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Submission, Bounty])],
+  imports: [TypeOrmModule.forFeature([Submission, Bounty]), MetricsModule],
   controllers: [SubmissionsController],
-  providers: [SubmissionsService],
+  providers: [SubmissionsService, StellarRpcClient, CircuitBreaker],
+  exports: [StellarRpcClient],
 })
 export class SubmissionsModule {}

@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,10 +11,12 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
 import { CreateSubmissionDto } from './submissions.dto';
+import { StellarRpcClient } from '../common/stellar-rpc-client';
 
 @Injectable()
 export class SubmissionsService {
-  private readonly logger = new Logger(SubmissionsService.name);
+  private lastWarnMessage: { bountyId: string; contractId: string; rpcUrl: string; message: string } | null = null;
+  private lastWarnTime = 0;
 
   constructor(
     @InjectRepository(Submission)
@@ -23,6 +24,7 @@ export class SubmissionsService {
     @InjectRepository(Bounty)
     private readonly bountyRepo: Repository<Bounty>,
     private readonly config: ConfigService,
+    private readonly stellarRpcClient: StellarRpcClient,
   ) {}
 
   async create(bountyId: string, dto: CreateSubmissionDto, contributorAddress: string) {
@@ -83,7 +85,7 @@ export class SubmissionsService {
     const contractId =
       this.config.get<string>(`SOROBAN_CONTRACT_${bountyId.toUpperCase()}`) ??
       this.config.get<string>('SOROBAN_CONTRACT_ID');
-    if (!contractId) return; // no contract configured — skip (dev/test mode)
+    if (!contractId) return;
 
     const network = this.config.get<string>('STELLAR_NETWORK', 'testnet');
     const rpcUrl =
@@ -91,15 +93,13 @@ export class SubmissionsService {
       (network === 'mainnet'
         ? 'https://mainnet.stellar.validationcloud.io/v1/rpc'
         : 'https://soroban-testnet.stellar.org');
-
-    const server = new StellarSdk.rpc.Server(rpcUrl);
     const networkPassphrase =
-      network === 'mainnet'
-        ? StellarSdk.Networks.PUBLIC
-        : StellarSdk.Networks.TESTNET;
+      network === 'mainnet' ? StellarSdk.Networks.PUBLIC : StellarSdk.Networks.TESTNET;
+
+    this.stellarRpcClient.initialize(rpcUrl, networkPassphrase);
 
     try {
-      const account = await server.getAccount(ownerAddress);
+      const account = await this.stellarRpcClient.getAccount(ownerAddress);
 
       const contract = new StellarSdk.Contract(contractId);
       const tx = new StellarSdk.TransactionBuilder(account, {
@@ -112,21 +112,34 @@ export class SubmissionsService {
         .setTimeout(30)
         .build();
 
-      const prepared = await server.prepareTransaction(tx);
-      // The backend signs only if a server-side signing key is configured.
+      const prepared = await this.stellarRpcClient.prepareTransaction(tx);
       const signingSecret = this.config.get<string>('STELLAR_SIGNING_SECRET');
       if (signingSecret) {
         const signingKeypair = StellarSdk.Keypair.fromSecret(signingSecret);
         prepared.sign(signingKeypair);
-        await server.sendTransaction(prepared);
+        await this.stellarRpcClient.sendTransaction(prepared);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Stellar contract approval skipped after RPC failure: bountyId=${bountyId}, contractId=${contractId}, rpcUrl=${rpcUrl}, error=${message}`,
-      );
+      this.stellarRpcClientThrottledWarn(bountyId, contractId, rpcUrl, message);
     }
-    // If no signing secret, the transaction is prepared but not submitted —
-    // the client is expected to sign and submit it separately.
+  }
+
+  private stellarRpcClientThrottledWarn(
+    bountyId: string,
+    contractId: string,
+    rpcUrl: string,
+    message: string,
+  ): void {
+    const now = Date.now();
+    const key = `${bountyId}:${contractId}:${rpcUrl}:${message}`;
+    if (this.lastWarnMessage === key && now - this.lastWarnTime < 5_000) {
+      return;
+    }
+    this.lastWarnMessage = key;
+    this.lastWarnTime = now;
+    console.warn(
+      `Stellar contract approval skipped after RPC failure: bountyId=${bountyId}, contractId=${contractId}, rpcUrl=${rpcUrl}, error=${message}`,
+    );
   }
 }
