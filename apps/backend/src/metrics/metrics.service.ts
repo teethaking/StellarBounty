@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CircuitState } from '../circuit-breaker';
+import { CircuitState } from '../common/circuit-breaker';
 
 type CircuitStateSample = {
   name: string;
@@ -8,7 +8,7 @@ type CircuitStateSample = {
 
 @Injectable()
 export class MetricsService {
-  private readonly startedAt = Date.now();
+  private startedAt = Date.now();
   private requestCounts = new Map<string, number>();
   private requestLatencyBuckets = new Map<string, number[]>();
   private requestLatencySums = new Map<string, number>();
