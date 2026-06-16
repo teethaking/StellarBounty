@@ -11,6 +11,8 @@ import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
+import { MetricsService } from '../metrics/metrics.service';
+import { withStellarRpcRetry } from '../common/stellar-rpc-retry';
 import { CreateSubmissionDto } from './submissions.dto';
 
 @Injectable()
@@ -23,6 +25,7 @@ export class SubmissionsService {
     @InjectRepository(Bounty)
     private readonly bountyRepo: Repository<Bounty>,
     private readonly config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async create(bountyId: string, dto: CreateSubmissionDto, contributorAddress: string) {
@@ -98,35 +101,58 @@ export class SubmissionsService {
         ? StellarSdk.Networks.PUBLIC
         : StellarSdk.Networks.TESTNET;
 
-    try {
-      const account = await server.getAccount(ownerAddress);
+    const retryOptions = this.createStellarRpcRetryOptions();
+    const account = await withStellarRpcRetry(
+      'getAccount',
+      () => server.getAccount(ownerAddress),
+      retryOptions,
+    );
 
-      const contract = new StellarSdk.Contract(contractId);
-      const tx = new StellarSdk.TransactionBuilder(account, {
-        fee: StellarSdk.BASE_FEE,
-        networkPassphrase,
-      })
-        .addOperation(
-          contract.call('approve', StellarSdk.nativeToScVal(ownerAddress, { type: 'address' })),
-        )
-        .setTimeout(30)
-        .build();
+    const contract = new StellarSdk.Contract(contractId);
+    const tx = new StellarSdk.TransactionBuilder(account, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(
+        contract.call('approve', StellarSdk.nativeToScVal(ownerAddress, { type: 'address' })),
+      )
+      .setTimeout(30)
+      .build();
 
-      const prepared = await server.prepareTransaction(tx);
-      // The backend signs only if a server-side signing key is configured.
-      const signingSecret = this.config.get<string>('STELLAR_SIGNING_SECRET');
-      if (signingSecret) {
-        const signingKeypair = StellarSdk.Keypair.fromSecret(signingSecret);
-        prepared.sign(signingKeypair);
-        await server.sendTransaction(prepared);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Stellar contract approval skipped after RPC failure: bountyId=${bountyId}, contractId=${contractId}, rpcUrl=${rpcUrl}, error=${message}`,
+    const prepared = await withStellarRpcRetry(
+      'prepareTransaction',
+      () => server.prepareTransaction(tx),
+      retryOptions,
+    );
+    // The backend signs only if a server-side signing key is configured.
+    const signingSecret = this.config.get<string>('STELLAR_SIGNING_SECRET');
+    if (signingSecret) {
+      const signingKeypair = StellarSdk.Keypair.fromSecret(signingSecret);
+      prepared.sign(signingKeypair);
+      await withStellarRpcRetry(
+        'sendTransaction',
+        () => server.sendTransaction(prepared),
+        retryOptions,
       );
     }
     // If no signing secret, the transaction is prepared but not submitted —
     // the client is expected to sign and submit it separately.
+  }
+
+  private createStellarRpcRetryOptions() {
+    const maxRetries = Number(this.config.get<number>('STELLAR_RPC_RETRY_MAX_RETRIES', 3));
+    const baseDelayMs = Number(this.config.get<number>('STELLAR_RPC_RETRY_BASE_DELAY_MS', 1000));
+
+    return {
+      maxRetries,
+      baseDelayMs,
+      logger: this.logger,
+      onFailure: ({ operation, retryable }: { operation: string; retryable: boolean }) => {
+        this.metrics.recordStellarRpcFailure({ operation, retryable });
+      },
+      onRetry: ({ operation, retryable }: { operation: string; retryable: boolean }) => {
+        this.metrics.recordStellarRpcRetry({ operation, retryable });
+      },
+    };
   }
 }
