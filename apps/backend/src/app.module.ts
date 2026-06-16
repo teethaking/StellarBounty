@@ -14,6 +14,7 @@ import { Nonce } from './entities/nonce.entity';
 import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
 import { AddNoncesTable1747657300000 } from './migrations/1747657300000-AddNoncesTable';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { CspReportController } from './csp-report.controller';
 import { MetricsMiddleware } from './metrics/metrics.middleware';
 import { MetricsModule } from './metrics/metrics.module';
 import { MetricsService } from './metrics/metrics.service';
@@ -29,6 +30,7 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
         DATABASE_URL: Joi.string().required(),
         JWT_SECRET: Joi.string().required(),
         STELLAR_NETWORK: Joi.string().valid('testnet', 'mainnet').required(),
+        STELLAR_RPC_URL: Joi.string().uri().optional(),
         CORS_ORIGIN: Joi.string().uri().default('http://localhost:3000'),
         CORS_ORIGINS: Joi.string().optional(),
         AUTH_RATE_LIMIT_TTL_MS: Joi.number().integer().positive().default(60000),
@@ -60,7 +62,7 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
       }),
     }),
   ],
-  controllers: [AppController, BountiesController],
+  controllers: [AppController, BountiesController, CspReportController],
   providers: [AppService, BountiesService, DeadlineAutomationService],
 })
 export class AppModule implements NestModule {
