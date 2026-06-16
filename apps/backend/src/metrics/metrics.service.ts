@@ -16,7 +16,7 @@ export class MetricsService {
   private databaseQueryErrors = new Map<string, number>();
   private databaseQueryDurations: number[] = [];
   private activeWebSocketConnections = 0;
-  private circuitStateSamples: CircuitStateSample[] = [];
+  private circuitStateSamples: CircuitStateSample[] = [{ name: '', state: CircuitState.CLOSED }];
 
   reset(): void {
     this.requestCounts = new Map();
