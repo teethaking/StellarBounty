@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { CircuitState, CircuitOpenError, CircuitBreaker } from './circuit-breaker';
+import { CircuitOpenError, CircuitBreaker } from './circuit-breaker';
 import { MetricsService } from '../metrics/metrics.service';
 
 @Injectable()
