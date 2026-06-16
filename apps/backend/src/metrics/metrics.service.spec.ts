@@ -56,6 +56,6 @@ describe('MetricsService', () => {
     service.recordCircuitBreakerStateChange('rpc', 1);
     service.reset();
     const output = service.renderPrometheus();
-    expect(output).toContain('stellar_bounty_circuit_breaker_state 0');
+    expect(output).toContain('stellar_bounty_circuit_breaker_state{name="",state=""} 0');
   });
 });
