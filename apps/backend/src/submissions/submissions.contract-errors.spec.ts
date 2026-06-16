@@ -3,6 +3,7 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 import { Repository } from 'typeorm';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
+import { StellarRpcClient } from '../common/stellar-rpc-client';
 import { SubmissionsService } from './submissions.service';
 
 const mockServer = {
@@ -85,6 +86,7 @@ describe('SubmissionsService contract error handling', () => {
       submissionRepo as unknown as Repository<Submission>,
       bountyRepo as unknown as Repository<Bounty>,
       config as unknown as ConfigService,
+      {} as unknown as StellarRpcClient,
     );
 
     await expect(service.approve('bounty1', 'submission1', 'GOWNER')).resolves.toMatchObject({
