@@ -19,7 +19,7 @@ describe('createJwtModuleOptions', () => {
     });
   });
 
-  it('defaults access-token expiry to 15 minutes', () => {
+  it('defaults access-token expiry to the previous 24 hour behavior', () => {
     const config = {
       get: jest.fn((key: string, defaultValue?: unknown) => {
         const values: Record<string, string> = {
@@ -31,7 +31,7 @@ describe('createJwtModuleOptions', () => {
 
     expect(createJwtModuleOptions(config as unknown as ConfigService)).toEqual({
       secret: 'test-secret',
-      signOptions: { expiresIn: '15m' },
+      signOptions: { expiresIn: '24h' },
     });
   });
 });

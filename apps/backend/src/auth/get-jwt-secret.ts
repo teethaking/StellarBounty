@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 
 let configService: ConfigService | undefined;
 
-export function setConfigService(cs: ConfigService): void {
+export function setConfigService(cs?: ConfigService): void {
   configService = cs;
 }
 

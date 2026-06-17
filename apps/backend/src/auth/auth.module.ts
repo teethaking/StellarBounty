@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -12,11 +12,11 @@ import { JwtStrategy } from './jwt.strategy';
 import { getJwtSecret } from './get-jwt-secret';
 import { Nonce } from '../entities/nonce.entity';
 
-export function createJwtModuleOptions(configService: ConfigService) {
+export function createJwtModuleOptions(configService: ConfigService): JwtModuleOptions {
   return {
     secret: getJwtSecret(configService),
     signOptions: {
-      expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m'),
+      expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN', '24h'),
     },
   };
 }
