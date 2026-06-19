@@ -12,6 +12,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JsonLoggerService, jsonLogger } from './common/json-logger.service';
 import { createCorsOptions } from './cors.config';
 import { createContentSecurityPolicy } from './csp.config';
+import { createGracefulShutdownHandler } from './graceful-shutdown';
 import { setupSwagger } from './swagger.setup';
 import { createValidationPipeOptions } from './validation-pipe.config';
 
@@ -60,6 +61,11 @@ async function bootstrap() {
 
   const port = config.get<number>('PORT', 4000);
   await app.listen(port);
+  app.enableShutdownHooks();
+
+  const shutdown = createGracefulShutdownHandler(app, { logger: jsonLogger });
+  process.once('SIGTERM', () => void shutdown('SIGTERM'));
+  process.once('SIGINT', () => void shutdown('SIGINT'));
   jsonLogger.log(`Backend listening on port ${port}`, 'Bootstrap');
 }
 
