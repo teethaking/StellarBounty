@@ -127,6 +127,24 @@ export class SubmissionsService {
           .setTimeout(30)
           .build();
 
+        const simResult = await withStellarRpcRetry(
+          'simulateTransaction',
+          () => server.simulateTransaction(tx),
+          retryOptions,
+        );
+        if ('error' in simResult) {
+          const errorDetails = (simResult as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error;
+          this.logger.warn(
+            `Stellar transaction simulation failed: bountyId=${bountyId}, contractId=${contractId}, error=${errorDetails}`,
+          );
+          throw new BadRequestException(
+            `Transaction simulation failed: ${errorDetails}. The contract call would not succeed.`,
+          );
+        }
+        if ('transactionData' in simResult) {
+          this.logger.log(`Stellar tx simulation OK: bountyId=${bountyId}`);
+        }
+
         const prepared = await withStellarRpcRetry(
           'prepareTransaction',
           () => server.prepareTransaction(tx),
@@ -151,6 +169,7 @@ export class SubmissionsService {
         }
         return; // success — stop trying
       } catch (error) {
+        if (error instanceof BadRequestException) throw error;
         lastError = error;
         this.logger.warn(
           `Stellar RPC attempt failed: bountyId=${bountyId}, rpcUrl=${rpcUrl}, error=${error instanceof Error ? error.message : String(error)}`,
