@@ -25,6 +25,7 @@ import { AddNoncesTable1747657300000 } from './migrations/1747657300000-AddNonce
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { CspReportController } from './csp-report.controller';
 import { MetricsMiddleware } from './metrics/metrics.middleware';
+import { AuditLogMiddleware } from './common/middleware/audit-log.middleware';
 import { MetricsModule } from './metrics/metrics.module';
 import { MetricsService } from './metrics/metrics.service';
 import { TypeOrmMetricsLogger } from './metrics/typeorm-metrics.logger';
@@ -105,6 +106,6 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(MetricsMiddleware, LoggerMiddleware).forRoutes('*');
+    consumer.apply(MetricsMiddleware, LoggerMiddleware, AuditLogMiddleware).forRoutes('*');
   }
 }
